@@ -1,6 +1,7 @@
 use std::fs;
 use std::io;
 use std::path::Path;
+use std::path::PathBuf;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -11,7 +12,7 @@ const PORT: u32 = 7070;
 struct Entry {
     media: u32,
     description: String,
-    selector: String,
+    selector: PathBuf,
     host: String,
     port: u32,
 }
@@ -35,13 +36,7 @@ impl GopherMenu {
                 .map(|f| {
                     let dir_entry = f.unwrap();
                     let description = dir_entry.file_name().to_string_lossy().to_string();
-                    let selector = dir_entry
-                        .path()
-                        .strip_prefix(ROOT)
-                        .unwrap()
-                        .to_string_lossy()
-                        .to_string()
-                        .replace('\\', "/");
+                    let selector = dir_entry.path().strip_prefix(ROOT).unwrap().to_path_buf();
 
                     Entry {
                         media: if dir_entry.file_type().unwrap().is_dir() {
@@ -66,6 +61,14 @@ impl GopherMenu {
     }
 }
 
+fn normalize_path<P: AsRef<Path>>(path: P) -> String {
+    path.as_ref()
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().to_string())
+        .collect::<Vec<String>>()
+        .join("/")
+}
+
 fn handle_request(request: &str) -> io::Result<Vec<u8>> {
     let formatted_request = format!("{ROOT}/{}", request.trim());
     let path = Path::new(&formatted_request);
@@ -78,7 +81,11 @@ fn handle_request(request: &str) -> io::Result<Vec<u8>> {
             .map(|e| {
                 format!(
                     "{}{}\t/{}\t{}\t{}\r\n",
-                    e.media, e.description, e.selector, e.host, e.port
+                    e.media,
+                    e.description,
+                    normalize_path(&e.selector),
+                    e.host,
+                    e.port
                 )
             })
             .collect();
