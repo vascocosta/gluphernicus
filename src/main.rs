@@ -9,7 +9,7 @@ const ROOT: &str = ".";
 const HOST: &str = "127.0.0.1";
 const PORT: u32 = 7070;
 
-struct Entry {
+struct MenuEntry {
     media: u32,
     description: String,
     selector: PathBuf,
@@ -18,7 +18,7 @@ struct Entry {
 }
 
 struct GopherMenu {
-    entries: Vec<Entry>,
+    entries: Vec<MenuEntry>,
 }
 
 impl GopherMenu {
@@ -32,13 +32,13 @@ impl GopherMenu {
         if path.is_dir() {
             let entries = fs::read_dir(path).unwrap();
 
-            let entries: Vec<Entry> = entries
+            let entries: Vec<MenuEntry> = entries
                 .map(|f| {
                     let dir_entry = f.unwrap();
                     let description = dir_entry.file_name().to_string_lossy().to_string();
                     let selector = dir_entry.path().strip_prefix(ROOT).unwrap().to_path_buf();
 
-                    Entry {
+                    MenuEntry {
                         media: if dir_entry.file_type().unwrap().is_dir() {
                             1
                         } else {
