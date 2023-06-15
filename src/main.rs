@@ -67,7 +67,7 @@ impl GopherMenu {
     }
 }
 
-fn handle_request(request: &str) -> io::Result<String> {
+fn handle_request(request: &str) -> io::Result<Vec<u8>> {
     let formatted_request = format!("{ROOT}/{}", request.trim());
     let path = Path::new(&formatted_request);
 
@@ -84,11 +84,11 @@ fn handle_request(request: &str) -> io::Result<String> {
             })
             .collect();
 
-        Ok(format!("{}.\r\n", response))
+        Ok(format!("{}.\r\n", response).into())
     } else {
-        let response = fs::read_to_string(path)?;
+        let response = fs::read(path)?;
 
-        Ok(format!("{}\r\n.\r\n", response))
+        Ok(response)
     }
 }
 
@@ -101,7 +101,7 @@ async fn handle_connection(mut socket: TcpStream) {
             let request = String::from_utf8_lossy(&buf[1..n]);
             let response = handle_request(&request);
             socket
-                .write_all(response.unwrap().as_bytes())
+                .write_all(response.unwrap().as_slice())
                 .await
                 .unwrap();
         }
