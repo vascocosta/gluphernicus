@@ -1,9 +1,7 @@
-use std::error::Error;
 use std::fs;
-use std::fs::ReadDir;
 use std::io;
 use std::path::Path;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 const ROOT: &str = "C:/Users/vasco/src/github.com/vascocosta/gluopherd/";
@@ -96,7 +94,7 @@ async fn handle_connection(mut socket: TcpStream) {
     let mut buf = [0; 1024];
 
     match socket.read(&mut buf).await {
-        Ok(0) => return,
+        Ok(0) => (),
         Ok(n) => {
             let request = String::from_utf8_lossy(&buf[1..n]);
             let response = handle_request(&request);
@@ -105,7 +103,7 @@ async fn handle_connection(mut socket: TcpStream) {
                 .await
                 .unwrap();
         }
-        Err(_) => return,
+        Err(_) => (),
     }
 }
 
@@ -120,6 +118,4 @@ async fn main() -> io::Result<()> {
             handle_connection(socket).await;
         });
     }
-
-    Ok(())
 }
