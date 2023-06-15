@@ -9,7 +9,7 @@ const ROOT: &str = ".";
 const HOST: &str = "127.0.0.1";
 const PORT: u32 = 7070;
 
-struct MenuEntry {
+struct MenuItem {
     media: u32,
     description: String,
     selector: PathBuf,
@@ -17,28 +17,26 @@ struct MenuEntry {
     port: u32,
 }
 
-struct GopherMenu {
-    entries: Vec<MenuEntry>,
+struct Menu {
+    items: Vec<MenuItem>,
 }
 
-impl GopherMenu {
+impl Menu {
     fn new() -> Self {
-        Self {
-            entries: Vec::new(),
-        }
+        Self { items: Vec::new() }
     }
 
     fn from_path(path: &Path) -> Self {
         if path.is_dir() {
-            let entries = fs::read_dir(path).unwrap();
+            let items = fs::read_dir(path).unwrap();
 
-            let entries: Vec<MenuEntry> = entries
+            let items: Vec<MenuItem> = items
                 .map(|f| {
                     let dir_entry = f.unwrap();
                     let description = dir_entry.file_name().to_string_lossy().to_string();
                     let selector = dir_entry.path().strip_prefix(ROOT).unwrap().to_path_buf();
 
-                    MenuEntry {
+                    MenuItem {
                         media: if dir_entry.file_type().unwrap().is_dir() {
                             1
                         } else {
@@ -52,11 +50,9 @@ impl GopherMenu {
                 })
                 .collect();
 
-            Self { entries }
+            Self { items }
         } else {
-            Self {
-                entries: Vec::new(),
-            }
+            Self { items: Vec::new() }
         }
     }
 }
@@ -74,9 +70,9 @@ fn handle_request(request: &str) -> io::Result<Vec<u8>> {
     let path = Path::new(&formatted_request);
 
     if path.is_dir() {
-        let gopher_menu = GopherMenu::from_path(path);
-        let response: String = gopher_menu
-            .entries
+        let menu = Menu::from_path(path);
+        let response: String = menu
+            .items
             .iter()
             .map(|e| {
                 format!(
