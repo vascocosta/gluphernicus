@@ -4,7 +4,7 @@ use std::path::Path;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
-const ROOT: &str = "C:/Users/vasco/src/github.com/vascocosta/gluopherd/";
+const ROOT: &str = ".";
 const HOST: &str = "127.0.0.1";
 const PORT: u32 = 7070;
 
@@ -15,6 +15,7 @@ struct Entry {
     host: String,
     port: u32,
 }
+
 struct GopherMenu {
     entries: Vec<Entry>,
 }
