@@ -9,7 +9,7 @@ const ROOT: &str = ".";
 const HOST: &str = "127.0.0.1";
 const PORT: u32 = 7070;
 
-struct MenuItem {
+struct Item {
     media: u32,
     description: String,
     selector: PathBuf,
@@ -18,7 +18,7 @@ struct MenuItem {
 }
 
 struct Menu {
-    items: Vec<MenuItem>,
+    items: Vec<Item>,
 }
 
 impl Menu {
@@ -30,13 +30,13 @@ impl Menu {
         if path.is_dir() {
             let items = fs::read_dir(path).unwrap();
 
-            let items: Vec<MenuItem> = items
+            let items: Vec<Item> = items
                 .map(|f| {
                     let dir_entry = f.unwrap();
                     let description = dir_entry.file_name().to_string_lossy().to_string();
                     let selector = dir_entry.path().strip_prefix(ROOT).unwrap().to_path_buf();
 
-                    MenuItem {
+                    Item {
                         media: if dir_entry.file_type().unwrap().is_dir() {
                             1
                         } else {
