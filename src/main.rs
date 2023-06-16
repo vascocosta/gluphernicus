@@ -2,6 +2,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -9,6 +10,53 @@ const ROOT: &str = ".";
 const HOST: &str = "127.0.0.1";
 const PORT: u32 = 7070;
 
+#[derive(Clone)]
+struct Server {
+    root: PathBuf,
+    host: String,
+    port: u32,
+}
+
+impl Server {
+    fn new(root: Option<&str>, host: Option<&str>, port: Option<u32>) -> Self {
+        Self {
+            root: root.unwrap_or(".").into(),
+            host: String::from(host.unwrap_or("127.0.0.1")),
+            port: port.unwrap_or(70),
+        }
+    }
+
+    async fn handle_connection(server: Arc<Self>, mut socket: TcpStream) {
+        let mut buf = [0; 1024];
+
+        match socket.read(&mut buf).await {
+            Ok(0) => (),
+            Ok(n) => {
+                let request = String::from_utf8_lossy(&buf[1..n]);
+                let response = handle_request(&request);
+                socket
+                    .write_all(response.unwrap().as_slice())
+                    .await
+                    .unwrap();
+            }
+            Err(_) => (),
+        }
+    }
+
+    async fn run(&self) -> io::Result<()> {
+        let listener = TcpListener::bind(format!("{}:{}", self.host, self.port)).await?;
+
+        let server = Arc::new(self.clone());
+        loop {
+            let (socket, _) = listener.accept().await?;
+            let server_clone = server.clone();
+
+            tokio::spawn(async move {
+                Self::handle_connection(server_clone, socket).await;
+            });
+        }
+    }
+}
 struct Item {
     media: u32,
     description: String,
@@ -55,14 +103,14 @@ impl Menu {
             Self { items: Vec::new() }
         }
     }
-}
 
-fn normalize_path<P: AsRef<Path>>(path: P) -> String {
-    path.as_ref()
-        .components()
-        .map(|c| c.as_os_str().to_string_lossy().to_string())
-        .collect::<Vec<String>>()
-        .join("/")
+    fn normalize_path<P: AsRef<Path>>(path: P) -> String {
+        path.as_ref()
+            .components()
+            .map(|c| c.as_os_str().to_string_lossy().to_string())
+            .collect::<Vec<String>>()
+            .join("/")
+    }
 }
 
 fn handle_request(request: &str) -> io::Result<Vec<u8>> {
@@ -79,7 +127,7 @@ fn handle_request(request: &str) -> io::Result<Vec<u8>> {
                     "{}{}\t/{}\t{}\t{}\r\n",
                     e.media,
                     e.description,
-                    normalize_path(&e.selector),
+                    Menu::normalize_path(&e.selector),
                     e.host,
                     e.port
                 )
@@ -94,32 +142,11 @@ fn handle_request(request: &str) -> io::Result<Vec<u8>> {
     }
 }
 
-async fn handle_connection(mut socket: TcpStream) {
-    let mut buf = [0; 1024];
-
-    match socket.read(&mut buf).await {
-        Ok(0) => (),
-        Ok(n) => {
-            let request = String::from_utf8_lossy(&buf[1..n]);
-            let response = handle_request(&request);
-            socket
-                .write_all(response.unwrap().as_slice())
-                .await
-                .unwrap();
-        }
-        Err(_) => (),
-    }
-}
-
 #[tokio::main]
-async fn main() -> io::Result<()> {
-    let listener = TcpListener::bind("127.0.0.1:7070").await?;
+async fn main() {
+    let server = Server::new(None, None, Some(7070));
 
-    loop {
-        let (socket, _) = listener.accept().await?;
-
-        tokio::spawn(async move {
-            handle_connection(socket).await;
-        });
+    if let Err(error) = server.run().await {
+        eprintln!("{error}");
     }
 }
