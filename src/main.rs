@@ -26,7 +26,7 @@ impl Server {
         }
     }
 
-    async fn handle_connection(server: Arc<Self>, mut socket: TcpStream) {
+    async fn handle_connection(mut socket: TcpStream) {
         let mut buf = [0; 1024];
 
         match socket.read(&mut buf).await {
@@ -46,13 +46,11 @@ impl Server {
     async fn run(&self) -> io::Result<()> {
         let listener = TcpListener::bind(format!("{}:{}", self.host, self.port)).await?;
 
-        let server = Arc::new(self.clone());
         loop {
             let (socket, _) = listener.accept().await?;
-            let server_clone = server.clone();
 
             tokio::spawn(async move {
-                Self::handle_connection(server_clone, socket).await;
+                Self::handle_connection(socket).await;
             });
         }
     }
