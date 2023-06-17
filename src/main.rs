@@ -102,6 +102,7 @@ struct Menu {
 }
 
 impl Menu {
+    #[allow(dead_code)]
     fn new() -> Self {
         Self { items: Vec::new() }
     }
@@ -128,7 +129,7 @@ impl Menu {
                         },
                         description,
                         selector,
-                        host: String::from(config.host.clone()),
+                        host: config.host.clone(),
                         port: config.port,
                     }
                 })
