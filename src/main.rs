@@ -6,10 +6,6 @@ use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
-const ROOT: &str = ".";
-const HOST: &str = "127.0.0.1";
-const PORT: u32 = 7070;
-
 struct Config {
     root: PathBuf,
     host: String,
@@ -43,7 +39,8 @@ impl Server {
     }
 
     fn handle_request(&self, request: &str) -> io::Result<Vec<u8>> {
-        let formatted_request = format!("{ROOT}/{}", request.trim());
+        let formatted_request =
+            format!("{}/{}", self.config.root.to_string_lossy(), request.trim());
         let path = Path::new(&formatted_request);
 
         if path.is_dir() {
@@ -53,7 +50,7 @@ impl Server {
                 return Ok(response);
             }
 
-            let menu = Menu::from_path(path);
+            let menu = Menu::from_path(path, &self.config);
             let response: String = menu
                 .items
                 .iter()
@@ -109,7 +106,7 @@ impl Menu {
         Self { items: Vec::new() }
     }
 
-    fn from_path(path: &Path) -> Self {
+    fn from_path(path: &Path, config: &Config) -> Self {
         if path.is_dir() {
             let items = fs::read_dir(path).unwrap();
 
@@ -117,7 +114,11 @@ impl Menu {
                 .map(|f| {
                     let dir_entry = f.unwrap();
                     let description = dir_entry.file_name().to_string_lossy().to_string();
-                    let selector = dir_entry.path().strip_prefix(ROOT).unwrap().to_path_buf();
+                    let selector = dir_entry
+                        .path()
+                        .strip_prefix(config.root.clone())
+                        .unwrap()
+                        .to_path_buf();
 
                     Item {
                         media: if dir_entry.file_type().unwrap().is_dir() {
@@ -127,8 +128,8 @@ impl Menu {
                         },
                         description,
                         selector,
-                        host: String::from(HOST),
-                        port: PORT,
+                        host: String::from(config.host.clone()),
+                        port: config.port,
                     }
                 })
                 .collect();
