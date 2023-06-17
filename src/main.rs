@@ -1,4 +1,5 @@
 use std::fs;
+use std::fs::read;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
@@ -116,6 +117,12 @@ fn handle_request(request: &str) -> io::Result<Vec<u8>> {
     let path = Path::new(&formatted_request);
 
     if path.is_dir() {
+        if path.join("gophermap").is_file() {
+            let response = fs::read(path.join("gophermap"))?;
+
+            return Ok(response);
+        }
+
         let menu = Menu::from_path(path);
         let response: String = menu
             .items
