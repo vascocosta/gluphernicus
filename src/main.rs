@@ -1,9 +1,7 @@
 use std::fs;
-use std::fs::read;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -34,13 +32,48 @@ impl Server {
             Ok(0) => (),
             Ok(n) => {
                 let request = String::from_utf8_lossy(&buf[1..n]);
-                let response = handle_request(&request);
+                let response = Server::handle_request(&request);
                 socket
                     .write_all(response.unwrap().as_slice())
                     .await
                     .unwrap();
             }
             Err(_) => (),
+        }
+    }
+
+    fn handle_request(request: &str) -> io::Result<Vec<u8>> {
+        let formatted_request = format!("{ROOT}/{}", request.trim());
+        let path = Path::new(&formatted_request);
+
+        if path.is_dir() {
+            if path.join("gophermap").is_file() {
+                let response = fs::read(path.join("gophermap"))?;
+
+                return Ok(response);
+            }
+
+            let menu = Menu::from_path(path);
+            let response: String = menu
+                .items
+                .iter()
+                .map(|e| {
+                    format!(
+                        "{}{}\t/{}\t{}\t{}\r\n",
+                        e.media,
+                        e.description,
+                        Menu::normalize_path(&e.selector),
+                        e.host,
+                        e.port
+                    )
+                })
+                .collect();
+
+            Ok(format!("{}.\r\n", response).into())
+        } else {
+            let response = fs::read(path)?;
+
+            Ok(response)
         }
     }
 
@@ -56,6 +89,7 @@ impl Server {
         }
     }
 }
+
 struct Item {
     media: u32,
     description: String,
@@ -109,41 +143,6 @@ impl Menu {
             .map(|c| c.as_os_str().to_string_lossy().to_string())
             .collect::<Vec<String>>()
             .join("/")
-    }
-}
-
-fn handle_request(request: &str) -> io::Result<Vec<u8>> {
-    let formatted_request = format!("{ROOT}/{}", request.trim());
-    let path = Path::new(&formatted_request);
-
-    if path.is_dir() {
-        if path.join("gophermap").is_file() {
-            let response = fs::read(path.join("gophermap"))?;
-
-            return Ok(response);
-        }
-
-        let menu = Menu::from_path(path);
-        let response: String = menu
-            .items
-            .iter()
-            .map(|e| {
-                format!(
-                    "{}{}\t/{}\t{}\t{}\r\n",
-                    e.media,
-                    e.description,
-                    Menu::normalize_path(&e.selector),
-                    e.host,
-                    e.port
-                )
-            })
-            .collect();
-
-        Ok(format!("{}.\r\n", response).into())
-    } else {
-        let response = fs::read(path)?;
-
-        Ok(response)
     }
 }
 
