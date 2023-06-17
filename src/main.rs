@@ -83,9 +83,10 @@ impl Server {
 
         loop {
             let (socket, _) = listener.accept().await?;
-            let server = self.clone();
+            let self_clone = self.clone();
+
             tokio::spawn(async move {
-                server.handle_connection(socket).await;
+                self_clone.handle_connection(socket).await;
             });
         }
     }
