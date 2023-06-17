@@ -21,20 +21,20 @@ impl Server {
         Self { config }
     }
 
-    async fn handle_connection(&self, mut socket: TcpStream) {
+    async fn handle_connection(&self, mut socket: TcpStream) -> io::Result<()> {
         let mut buf = [0; 1024];
 
         match socket.read(&mut buf).await {
-            Ok(0) => (),
+            Ok(0) => Ok(()),
             Ok(n) => {
                 let request = String::from_utf8_lossy(&buf[1..n]);
-                let response = self.handle_request(&request);
-                socket
-                    .write_all(response.unwrap().as_slice())
-                    .await
-                    .unwrap();
+                let response = self.handle_request(&request)?;
+
+                socket.write_all(response.as_slice()).await?;
+
+                Ok(())
             }
-            Err(_) => (),
+            Err(_) => Ok(()),
         }
     }
 
@@ -83,7 +83,9 @@ impl Server {
             let self_clone = self.clone();
 
             tokio::spawn(async move {
-                self_clone.handle_connection(socket).await;
+                if let Err(error) = self_clone.handle_connection(socket).await {
+                    eprintln!("Error handling the connection: {}", error);
+                }
             });
         }
     }
@@ -161,6 +163,6 @@ async fn main() {
     let server = Arc::new(Server::new(config));
 
     if let Err(error) = server.run().await {
-        eprintln!("{error}");
+        eprintln!("Error running server: {}", error);
     }
 }
