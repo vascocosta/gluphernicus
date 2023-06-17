@@ -2,6 +2,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -9,30 +10,29 @@ const ROOT: &str = ".";
 const HOST: &str = "127.0.0.1";
 const PORT: u32 = 7070;
 
-#[derive(Clone)]
-struct Server {
+struct Config {
     root: PathBuf,
     host: String,
     port: u32,
 }
 
+struct Server {
+    config: Config,
+}
+
 impl Server {
-    fn new(root: Option<&str>, host: Option<&str>, port: Option<u32>) -> Self {
-        Self {
-            root: root.unwrap_or(".").into(),
-            host: String::from(host.unwrap_or("127.0.0.1")),
-            port: port.unwrap_or(70),
-        }
+    fn new(config: Config) -> Self {
+        Self { config }
     }
 
-    async fn handle_connection(mut socket: TcpStream) {
+    async fn handle_connection(&self, mut socket: TcpStream) {
         let mut buf = [0; 1024];
 
         match socket.read(&mut buf).await {
             Ok(0) => (),
             Ok(n) => {
                 let request = String::from_utf8_lossy(&buf[1..n]);
-                let response = Server::handle_request(&request);
+                let response = self.handle_request(&request);
                 socket
                     .write_all(response.unwrap().as_slice())
                     .await
@@ -42,7 +42,7 @@ impl Server {
         }
     }
 
-    fn handle_request(request: &str) -> io::Result<Vec<u8>> {
+    fn handle_request(&self, request: &str) -> io::Result<Vec<u8>> {
         let formatted_request = format!("{ROOT}/{}", request.trim());
         let path = Path::new(&formatted_request);
 
@@ -77,14 +77,15 @@ impl Server {
         }
     }
 
-    async fn run(&self) -> io::Result<()> {
-        let listener = TcpListener::bind(format!("{}:{}", self.host, self.port)).await?;
+    async fn run(self: Arc<Self>) -> io::Result<()> {
+        let listener =
+            TcpListener::bind(format!("{}:{}", self.config.host, self.config.port)).await?;
 
         loop {
             let (socket, _) = listener.accept().await?;
-
+            let server = self.clone();
             tokio::spawn(async move {
-                Self::handle_connection(socket).await;
+                server.handle_connection(socket).await;
             });
         }
     }
@@ -148,7 +149,13 @@ impl Menu {
 
 #[tokio::main]
 async fn main() {
-    let server = Server::new(None, None, Some(7070));
+    let config = Config {
+        root: PathBuf::from("."),
+        host: String::from("127.0.0.1"),
+        port: 7070,
+    };
+
+    let server = Arc::new(Server::new(config));
 
     if let Err(error) = server.run().await {
         eprintln!("{error}");
