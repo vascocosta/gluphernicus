@@ -34,7 +34,7 @@ impl Server {
 
                 Ok(())
             }
-            Err(_) => Ok(()),
+            Err(error) => Err(error),
         }
     }
 
