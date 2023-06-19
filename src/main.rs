@@ -3,12 +3,17 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use structopt::StructOpt;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
+#[derive(StructOpt)]
 struct Config {
+    #[structopt(short, long, default_value = ".", parse(from_os_str))]
     root: PathBuf,
+    #[structopt(short, long, default_value = "127.0.0.1")]
     host: String,
+    #[structopt(short, long, default_value = "7070")]
     port: u32,
 }
 
@@ -154,12 +159,7 @@ impl Menu {
 
 #[tokio::main]
 async fn main() {
-    let config = Config {
-        root: PathBuf::from("."),
-        host: String::from("127.0.0.1"),
-        port: 7070,
-    };
-
+    let config = Config::from_args();
     let server = Arc::new(Server::new(config));
 
     if let Err(error) = server.run().await {
