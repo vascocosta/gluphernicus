@@ -120,7 +120,7 @@ impl Menu {
                     let selector = dir_entry
                         .path()
                         .strip_prefix(config.root.clone())
-                        .unwrap()
+                        .ok()?
                         .to_path_buf();
 
                     Some(Item {
