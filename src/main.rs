@@ -50,7 +50,7 @@ impl Server {
                 return Ok(response);
             }
 
-            let menu = Menu::from_path(path, &self.config);
+            let menu = Menu::from_path(path, &self.config)?;
             let response: String = menu
                 .items
                 .iter()
@@ -109,13 +109,13 @@ impl Menu {
         Self { items: Vec::new() }
     }
 
-    fn from_path(path: &Path, config: &Config) -> Self {
+    fn from_path(path: &Path, config: &Config) -> io::Result<Self> {
         if path.is_dir() {
-            let items = fs::read_dir(path).unwrap();
+            let items = fs::read_dir(path)?;
 
             let items: Vec<Item> = items
-                .map(|f| {
-                    let dir_entry = f.unwrap();
+                .filter_map(|f| {
+                    let dir_entry = f.ok()?;
                     let description = dir_entry.file_name().to_string_lossy().to_string();
                     let selector = dir_entry
                         .path()
@@ -123,8 +123,8 @@ impl Menu {
                         .unwrap()
                         .to_path_buf();
 
-                    Item {
-                        media: if dir_entry.file_type().unwrap().is_dir() {
+                    Some(Item {
+                        media: if dir_entry.file_type().ok()?.is_dir() {
                             1
                         } else {
                             0
@@ -133,13 +133,13 @@ impl Menu {
                         selector,
                         host: config.host.clone(),
                         port: config.port,
-                    }
+                    })
                 })
                 .collect();
 
-            Self { items }
+            Ok(Self { items })
         } else {
-            Self { items: Vec::new() }
+            Ok(Self { items: Vec::new() })
         }
     }
 
