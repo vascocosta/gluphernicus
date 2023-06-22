@@ -72,10 +72,14 @@ impl Server {
                 .collect();
 
             Ok(format!("{}.\r\n", response).into())
-        } else {
+        } else if path.is_file() {
             let response = fs::read(path)?;
 
             Ok(response)
+        } else {
+            let response = "i Resource not found.\terror.host\t1";
+
+            Ok(format!("{}\r\n.\r\n", response).into_bytes())
         }
     }
 
