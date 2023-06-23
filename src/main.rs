@@ -77,7 +77,10 @@ impl Server {
 
             Ok(response)
         } else {
-            let response = "i Resource not found.\terror.host\t1";
+            let response = format!(
+                "3 {} doesn't exist!\terror.host\t1\r\ni This resource cannot be located.\terror.host\t1",
+                request.trim()
+            );
 
             Ok(format!("{}\r\n.\r\n", response).into_bytes())
         }
