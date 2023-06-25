@@ -1,13 +1,23 @@
 use chrono::Utc;
+use std::fmt::Display;
 use std::fs::OpenOptions;
 use std::io::{self, Write};
 use std::path::Path;
 
-#[derive(Debug)]
 pub enum Category {
     Error,
     Info,
     Request,
+}
+
+impl Display for Category {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Category::Error => write!(f, "{}", Self::Error),
+            Category::Info => write!(f, "{}", Self::Info),
+            Category::Request => write!(f, "{}", Self::Request),
+        }
+    }
 }
 
 pub struct Logger {
@@ -25,7 +35,7 @@ impl Logger {
     }
 
     pub fn log(&mut self, category: Category, message: &str) -> io::Result<()> {
-        writeln!(self.output, "[{}] {:?}: {}", Utc::now(), category, message)?;
+        writeln!(self.output, "[{}] {}: {}", Utc::now(), category, message)?;
         self.output.flush()
     }
 }
