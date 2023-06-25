@@ -1,3 +1,4 @@
+use crate::log::{Category, Logger};
 use std::fs;
 use std::io;
 use std::path::Path;
@@ -6,6 +7,7 @@ use std::sync::Arc;
 use structopt::StructOpt;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::Mutex;
 
 #[derive(StructOpt)]
 pub struct Config {
@@ -19,11 +21,12 @@ pub struct Config {
 
 pub struct Server {
     config: Config,
+    logger: Arc<Mutex<Logger>>,
 }
 
 impl Server {
-    pub fn new(config: Config) -> Self {
-        Self { config }
+    pub fn new(config: Config, logger: Arc<Mutex<Logger>>) -> Self {
+        Self { config, logger }
     }
 
     async fn handle_connection(&self, mut socket: TcpStream) -> io::Result<()> {
@@ -33,7 +36,7 @@ impl Server {
             Ok(0) => Ok(()),
             Ok(n) => {
                 let request = String::from_utf8_lossy(&buf[1..n]);
-                let response = self.handle_request(&request)?;
+                let response = self.handle_request(&request).await?;
 
                 socket.write_all(response.as_slice()).await?;
 
@@ -43,10 +46,15 @@ impl Server {
         }
     }
 
-    fn handle_request(&self, request: &str) -> io::Result<Vec<u8>> {
+    async fn handle_request(&self, request: &str) -> io::Result<Vec<u8>> {
         let formatted_request =
             format!("{}/{}", self.config.root.to_string_lossy(), request.trim());
         let path = Path::new(&formatted_request);
+
+        self.logger
+            .lock()
+            .await
+            .log(Category::Request, format!("/{}", request.trim()).as_str())?;
 
         if path.is_dir() {
             if path.join("gophermap").is_file() {
