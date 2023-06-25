@@ -90,6 +90,11 @@ impl Server {
                 request.trim()
             );
 
+            self.logger.lock().await.log(
+                Category::Error,
+                format!("{} doesn't exist!", request.trim()).as_str(),
+            )?;
+
             Ok(format!("{}\r\n.\r\n", response).into_bytes())
         }
     }
@@ -97,6 +102,11 @@ impl Server {
     pub async fn run(self: Arc<Self>) -> io::Result<()> {
         let listener =
             TcpListener::bind(format!("{}:{}", self.config.host, self.config.port)).await?;
+
+        self.logger.lock().await.log(
+            Category::Info,
+            format!("Listening on: {}:{}", self.config.host, self.config.port).as_str(),
+        )?;
 
         loop {
             let (socket, _) = listener.accept().await?;

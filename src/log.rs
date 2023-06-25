@@ -13,9 +13,9 @@ pub enum Category {
 impl Display for Category {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Category::Error => write!(f, "{}", Self::Error),
-            Category::Info => write!(f, "{}", Self::Info),
-            Category::Request => write!(f, "{}", Self::Request),
+            Category::Error => write!(f, "Error"),
+            Category::Info => write!(f, "Info"),
+            Category::Request => write!(f, "Request"),
         }
     }
 }
