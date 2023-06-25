@@ -35,7 +35,13 @@ impl Logger {
     }
 
     pub fn log(&mut self, category: Category, message: &str) -> io::Result<()> {
-        writeln!(self.output, "[{}] {}: {}", Utc::now(), category, message)?;
+        writeln!(
+            self.output,
+            "[{}] {}: {}",
+            Utc::now().format("%d/%m/%Y %H:%M:%S%.3f"),
+            category,
+            message
+        )?;
         self.output.flush()
     }
 }

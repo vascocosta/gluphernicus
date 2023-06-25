@@ -29,14 +29,14 @@ impl Server {
         Self { config, logger }
     }
 
-    async fn handle_connection(&self, mut socket: TcpStream) -> io::Result<()> {
+    async fn handle_connection(&self, mut socket: TcpStream, address: &str) -> io::Result<()> {
         let mut buf = [0; 1024];
 
         match socket.read(&mut buf).await {
             Ok(0) => Ok(()),
             Ok(n) => {
                 let request = String::from_utf8_lossy(&buf[1..n]);
-                let response = self.handle_request(&request).await?;
+                let response = self.handle_request(&request, address).await?;
 
                 socket.write_all(response.as_slice()).await?;
 
@@ -46,15 +46,15 @@ impl Server {
         }
     }
 
-    async fn handle_request(&self, request: &str) -> io::Result<Vec<u8>> {
+    async fn handle_request(&self, request: &str, address: &str) -> io::Result<Vec<u8>> {
         let formatted_request =
             format!("{}/{}", self.config.root.to_string_lossy(), request.trim());
         let path = Path::new(&formatted_request);
 
-        self.logger
-            .lock()
-            .await
-            .log(Category::Request, format!("/{}", request.trim()).as_str())?;
+        self.logger.lock().await.log(
+            Category::Request,
+            format!("{} - /{}", address, request.trim()).as_str(),
+        )?;
 
         if path.is_dir() {
             if path.join("gophermap").is_file() {
@@ -92,7 +92,7 @@ impl Server {
 
             self.logger.lock().await.log(
                 Category::Error,
-                format!("{} doesn't exist!", request.trim()).as_str(),
+                format!("{} - {} doesn't exist!", address, request.trim()).as_str(),
             )?;
 
             Ok(format!("{}\r\n.\r\n", response).into_bytes())
@@ -105,15 +105,18 @@ impl Server {
 
         self.logger.lock().await.log(
             Category::Info,
-            format!("Listening on: {}:{}", self.config.host, self.config.port).as_str(),
+            format!("Listening on {}:{}", self.config.host, self.config.port).as_str(),
         )?;
 
         loop {
-            let (socket, _) = listener.accept().await?;
+            let (socket, address) = listener.accept().await?;
             let self_clone = self.clone();
 
             tokio::spawn(async move {
-                if let Err(error) = self_clone.handle_connection(socket).await {
+                if let Err(error) = self_clone
+                    .handle_connection(socket, &address.to_string())
+                    .await
+                {
                     eprintln!("Error handling the connection: {}", error);
                 }
             });
