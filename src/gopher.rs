@@ -17,6 +17,8 @@ pub struct Config {
     host: String,
     #[structopt(short, long, default_value = "7070")]
     port: u32,
+    #[structopt(short, long)]
+    log: Option<String>,
 }
 
 pub struct Server {
@@ -25,7 +27,11 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new(config: Config, logger: Arc<Mutex<Logger>>) -> Self {
+    pub fn new(config: Config) -> Self {
+        let logger = Arc::new(Mutex::new(
+            Logger::new::<&str>(config.log.as_deref()).unwrap(),
+        ));
+
         Self { config, logger }
     }
 
