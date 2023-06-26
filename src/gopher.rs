@@ -27,9 +27,9 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new(config: Config) -> Self {
+    pub async fn new(config: Config) -> Self {
         let logger = Arc::new(Mutex::new(
-            Logger::new::<&str>(config.log.as_deref()).unwrap(),
+            Logger::new::<&str>(config.log.as_deref()).await.unwrap(),
         ));
 
         Self { config, logger }
@@ -57,10 +57,14 @@ impl Server {
             format!("{}/{}", self.config.root.to_string_lossy(), request.trim());
         let path = Path::new(&formatted_request);
 
-        self.logger.lock().await.log(
-            Category::Request,
-            format!("{} - /{}", address, request.trim()).as_str(),
-        )?;
+        self.logger
+            .lock()
+            .await
+            .log(
+                Category::Request,
+                format!("{} - /{}", address, request.trim()).as_str(),
+            )
+            .await?;
 
         if path.is_dir() {
             if path.join("gophermap").is_file() {
@@ -96,10 +100,14 @@ impl Server {
                 request.trim()
             );
 
-            self.logger.lock().await.log(
-                Category::Error,
-                format!("{} - {} doesn't exist!", address, request.trim()).as_str(),
-            )?;
+            self.logger
+                .lock()
+                .await
+                .log(
+                    Category::Error,
+                    format!("{} - /{} doesn't exist!", address, request.trim()).as_str(),
+                )
+                .await?;
 
             Ok(format!("{}\r\n.\r\n", response).into_bytes())
         }
@@ -109,10 +117,14 @@ impl Server {
         let listener =
             TcpListener::bind(format!("{}:{}", self.config.host, self.config.port)).await?;
 
-        self.logger.lock().await.log(
-            Category::Info,
-            format!("Listening on {}:{}", self.config.host, self.config.port).as_str(),
-        )?;
+        self.logger
+            .lock()
+            .await
+            .log(
+                Category::Info,
+                format!("Listening on {}:{}", self.config.host, self.config.port).as_str(),
+            )
+            .await?;
 
         loop {
             let (socket, address) = listener.accept().await?;

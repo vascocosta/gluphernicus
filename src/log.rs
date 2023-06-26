@@ -1,8 +1,9 @@
 use chrono::Utc;
 use std::fmt::Display;
-use std::fs::OpenOptions;
-use std::io::{self, Write};
+use std::io;
 use std::path::Path;
+use std::pin::Pin;
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 
 pub enum Category {
     Error,
@@ -21,27 +22,38 @@ impl Display for Category {
 }
 
 pub struct Logger {
-    output: Box<dyn Send + Write>,
+    output: Pin<Box<dyn Send + AsyncWrite>>,
 }
 
 impl Logger {
-    pub fn new<P: AsRef<Path>>(path: Option<P>) -> io::Result<Self> {
-        let output: Box<dyn Send + Write> = match path {
-            Some(path) => Box::new(OpenOptions::new().append(true).create(true).open(path)?),
-            None => Box::new(io::stdout()),
+    pub async fn new<P: AsRef<Path>>(path: Option<P>) -> io::Result<Self> {
+        let output: Pin<Box<dyn Send + AsyncWrite>> = match path {
+            Some(path) => Box::pin(
+                tokio::fs::OpenOptions::new()
+                    .append(true)
+                    .create(true)
+                    .open(path)
+                    .await?,
+            ),
+            None => Box::pin(tokio::io::stdout()),
         };
 
         Ok(Self { output })
     }
 
-    pub fn log(&mut self, category: Category, message: &str) -> io::Result<()> {
-        writeln!(
-            self.output,
-            "[{}] {}: {}",
-            Utc::now().format("%d/%m/%Y %H:%M:%S%.3f"),
-            category,
-            message
-        )?;
-        self.output.flush()
+    pub async fn log(&mut self, category: Category, message: &str) -> io::Result<()> {
+        self.output
+            .write_all(
+                format!(
+                    "[{}] {}: {}\n",
+                    Utc::now().format("%d/%m/%Y %H:%M:%S%.3f"),
+                    category,
+                    message
+                )
+                .as_bytes(),
+            )
+            .await?;
+
+        self.output.flush().await
     }
 }
