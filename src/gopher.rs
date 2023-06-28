@@ -27,12 +27,12 @@ pub struct Server {
 }
 
 impl Server {
-    pub async fn new(config: Config) -> Self {
+    pub async fn new(config: Config) -> io::Result<Self> {
         let logger = Arc::new(Mutex::new(
-            Logger::new::<&str>(config.log.as_deref()).await.unwrap(),
+            Logger::new::<&str>(config.log.as_deref()).await?,
         ));
 
-        Self { config, logger }
+        Ok(Self { config, logger })
     }
 
     async fn handle_connection(&self, mut socket: TcpStream, address: &str) -> io::Result<()> {

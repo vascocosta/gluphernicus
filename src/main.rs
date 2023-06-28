@@ -8,7 +8,15 @@ use structopt::StructOpt;
 #[tokio::main]
 async fn main() {
     let config = Config::from_args();
-    let server = Arc::new(Server::new(config).await);
+    let server = match Server::new(config).await {
+        Ok(server) => server,
+        Err(error) => {
+            eprintln!("Error creating server: {}", error);
+
+            return;
+        }
+    };
+    let server = Arc::new(server);
 
     if let Err(error) = server.run().await {
         eprintln!("Error running server: {}", error);
