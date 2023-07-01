@@ -1,5 +1,4 @@
 use crate::log::{Category, Logger};
-use std::fs;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
@@ -73,7 +72,7 @@ impl Server {
                 return Ok(response);
             }
 
-            let menu = Menu::from_path(path, &self.config)?;
+            let menu = Menu::from_path(path, &self.config).await?;
             let response: String = menu
                 .items
                 .iter()
@@ -160,33 +159,31 @@ impl Menu {
         Self { items: Vec::new() }
     }
 
-    fn from_path(path: &Path, config: &Config) -> io::Result<Self> {
+    async fn from_path(path: &Path, config: &Config) -> io::Result<Self> {
         if path.is_dir() {
-            let items = fs::read_dir(path)?;
+            let mut items = Vec::new();
+            let mut dir = tokio::fs::read_dir(path).await?;
 
-            let items: Vec<Item> = items
-                .filter_map(|f| {
-                    let dir_entry = f.ok()?;
-                    let description = dir_entry.file_name().to_string_lossy().to_string();
-                    let selector = dir_entry
-                        .path()
-                        .strip_prefix(config.root.clone())
-                        .ok()?
-                        .to_path_buf();
+            while let Some(dir_entry) = dir.next_entry().await? {
+                let description = dir_entry.file_name().to_string_lossy().to_string();
+                let selector = dir_entry
+                    .path()
+                    .strip_prefix(config.root.clone())
+                    .unwrap_or(Path::new("/"))
+                    .to_path_buf();
 
-                    Some(Item {
-                        media: if dir_entry.file_type().ok()?.is_dir() {
-                            1
-                        } else {
-                            0
-                        },
-                        description,
-                        selector,
-                        host: config.host.clone(),
-                        port: config.port,
-                    })
-                })
-                .collect();
+                items.push(Item {
+                    media: if dir_entry.file_type().await?.is_dir() {
+                        1
+                    } else {
+                        0
+                    },
+                    description,
+                    selector,
+                    host: config.host.clone(),
+                    port: config.port,
+                });
+            }
 
             Ok(Self { items })
         } else {
