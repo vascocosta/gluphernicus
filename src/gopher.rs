@@ -68,7 +68,7 @@ impl Server {
 
         if path.is_dir() {
             if path.join("gophermap").is_file() {
-                let response = fs::read(path.join("gophermap"))?;
+                let response = tokio::fs::read(path.join("gophermap")).await?;
 
                 return Ok(response);
             }
@@ -91,7 +91,7 @@ impl Server {
 
             Ok(format!("{}.\r\n", response).into())
         } else if path.is_file() {
-            let response = fs::read(path)?;
+            let response = tokio::fs::read(path).await?;
 
             Ok(response)
         } else {
