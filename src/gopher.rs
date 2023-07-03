@@ -69,26 +69,26 @@ impl Server {
             if path.join("gophermap").is_file() {
                 let response = tokio::fs::read(path.join("gophermap")).await?;
 
-                return Ok(response);
+                Ok(response)
+            } else {
+                let menu = Menu::from_path(path, &self.config).await?;
+                let response: String = menu
+                    .items
+                    .iter()
+                    .map(|e| {
+                        format!(
+                            "{}{}\t/{}\t{}\t{}\r\n",
+                            e.media,
+                            e.description,
+                            Menu::normalize_path(&e.selector),
+                            e.host,
+                            e.port
+                        )
+                    })
+                    .collect();
+
+                Ok(format!("{}.\r\n", response).into())
             }
-
-            let menu = Menu::from_path(path, &self.config).await?;
-            let response: String = menu
-                .items
-                .iter()
-                .map(|e| {
-                    format!(
-                        "{}{}\t/{}\t{}\t{}\r\n",
-                        e.media,
-                        e.description,
-                        Menu::normalize_path(&e.selector),
-                        e.host,
-                        e.port
-                    )
-                })
-                .collect();
-
-            Ok(format!("{}.\r\n", response).into())
         } else if path.is_file() {
             let response = tokio::fs::read(path).await?;
 
