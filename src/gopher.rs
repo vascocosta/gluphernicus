@@ -67,9 +67,9 @@ impl Server {
 
         if path.is_dir() {
             if path.join("gophermap").is_file() {
-                let response = tokio::fs::read(path.join("gophermap")).await?;
+                let response = tokio::fs::read_to_string(path.join("gophermap")).await?;
 
-                Ok(response)
+                Ok(format!("{}.\r\n", response).into_bytes())
             } else {
                 let menu = Menu::from_path(path, &self.config).await?;
                 let response: String = menu
@@ -87,7 +87,7 @@ impl Server {
                     })
                     .collect();
 
-                Ok(format!("{}.\r\n", response).into())
+                Ok(format!("{}.\r\n", response).into_bytes())
             }
         } else if path.is_file() {
             let response = tokio::fs::read(path).await?;
