@@ -1,3 +1,4 @@
+mod cgi;
 mod gopher;
 mod log;
 

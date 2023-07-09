@@ -1,3 +1,4 @@
+use crate::cgi::Cgi;
 use crate::log::{Category, Logger};
 use std::io;
 use std::path::Path;
@@ -7,6 +8,7 @@ use structopt::StructOpt;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
+use urlencoding::decode;
 
 #[derive(StructOpt)]
 pub struct Config {
@@ -89,10 +91,26 @@ impl Server {
 
                 Ok(format!("{}.\r\n", response).into_bytes())
             }
-        } else if path.is_file() {
-            let response = tokio::fs::read(path).await?;
+        } else if decode(path.to_str().unwrap())
+            .unwrap()
+            .split('?')
+            .take(1)
+            .collect::<PathBuf>()
+            .is_file()
+        {
+            if path
+                .components()
+                .any(|c| c.as_os_str().to_ascii_lowercase() == "cgi-bin")
+            {
+                let mut cgi = Cgi::new(path);
+                let response = cgi.execute().await;
 
-            Ok(response)
+                Ok(response)
+            } else {
+                let response = tokio::fs::read(path).await?;
+
+                Ok(response)
+            }
         } else {
             let response = format!(
                 "3 {} doesn't exist!\terror.host\t1\r\ni This resource cannot be located.\terror.host\t1",
