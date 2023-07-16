@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, io, path::Path};
 use tokio::process::Command;
 use urlencoding::decode;
 
@@ -6,11 +6,9 @@ pub struct Cgi {
     script: Command,
 }
 
-// Extremely experimental code that needs a lot of work.
-
 impl Cgi {
-    pub fn new(script: &Path) -> Self {
-        let script = decode(script.to_str().unwrap()).unwrap();
+    pub fn new(script: &Path) -> Option<Self> {
+        let script = decode(script.to_str()?).ok()?;
         let query_string: String = script.split('?').skip(1).collect();
         let mut envs: HashMap<String, String> = HashMap::new();
         let mut command = Command::new(script.split('?').take(1).collect::<String>());
@@ -18,12 +16,12 @@ impl Cgi {
         envs.insert(String::from("QUERY_STRING"), query_string);
         command.envs(envs);
 
-        Self { script: command }
+        Some(Self { script: command })
     }
 
-    pub async fn execute(&mut self) -> Vec<u8> {
-        let output = self.script.output().await.unwrap();
+    pub async fn execute(&mut self) -> io::Result<Vec<u8>> {
+        let output = self.script.output().await?;
 
-        output.stdout
+        Ok(output.stdout)
     }
 }

@@ -91,8 +91,8 @@ impl Server {
 
                 Ok(format!("{}.\r\n", response).into_bytes())
             }
-        } else if decode(path.to_str().unwrap())
-            .unwrap()
+        } else if decode(path.to_str().unwrap_or_default())
+            .unwrap_or_default()
             .split('?')
             .take(1)
             .collect::<PathBuf>()
@@ -102,8 +102,11 @@ impl Server {
                 .components()
                 .any(|c| c.as_os_str().to_ascii_lowercase() == "cgi-bin")
             {
-                let mut cgi = Cgi::new(path);
-                let response = cgi.execute().await;
+                let mut cgi = match Cgi::new(path) {
+                    Some(cgi) => cgi,
+                    None => return Ok(Vec::new()), // Need to change this to provide error feedback.
+                };
+                let response = cgi.execute().await?;
 
                 Ok(response)
             } else {
